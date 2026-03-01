@@ -21,6 +21,5 @@ jobs:
 
       - run: |
           npm install
-          npx playwright install chromium
 
       - run: node --max-old-space-size=4096 ${{ matrix.file }}.js
