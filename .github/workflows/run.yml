@@ -23,4 +23,4 @@ jobs:
           npm install
           npx playwright install chromium
 
-      - run: node --max-old-space-size=4096 scrapper${{ matrix.scraper }}.js
+      - run: node --max-old-space-size=4096 ${{ matrix.file }}.js
