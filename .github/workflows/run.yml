@@ -19,7 +19,8 @@ jobs:
         with:
           node-version: 20
 
-      - run: npm install
+      - run: |
+          npm install
+          npx playwright install chromium
 
-      - name: Run Scraper
-        run: node ${{ matrix.file }}
+      - run: node --max-old-space-size=4096 scrapper${{ matrix.scraper }}.js
