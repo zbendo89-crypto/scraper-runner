@@ -13,13 +13,17 @@ jobs:
         file: [scrapper59.js, scrapper60.js, scrapper61.js, scrapper62.js, scrapper63.js]
 
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - run: |
-          npm install
-
-      - run: node --max-old-space-size=4096 ${{ matrix.file }}
+    - uses: actions/checkout@v4
+    
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+    
+    - name: Install dependencies
+      run: npm install
+    
+    - name: Install Playwright Browsers
+      run: npx playwright install --with-deps chromium
+    
+    - name: Run scraper
+      run: node --max-old-space-size=2048 ${{ matrix.file }}
