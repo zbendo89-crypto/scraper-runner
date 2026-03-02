@@ -1,7 +1,7 @@
 const MAX_CONTEXTS = 50;        // real concurrency
 const TOTAL_PER_PREFIX = 39304;
 const Database = require("better-sqlite3");
-const MAX_RUNTIME_MINUTES = 355;
+const MAX_RUNTIME_MINUTES = 352;
 let REQUEST_COUNTER = 0;
 const RESTART_THRESHOLD = 2500;
 let RESTARTING = false;
@@ -17,7 +17,7 @@ const xml2js = require("xml2js");
 let STOP_FLAG = false;
 let BLOCKED_CODE = null;
 let DEBUG_COUNTER = 0;
-
+let HARD_SHUTDOWN = false;
 let stats = {
   ok: 0,
   forbidden: 0,
@@ -153,14 +153,58 @@ async function flushDbWorker() {
   await new Promise(r => setTimeout(r, 1000)); // give time to flush
 }
 
-function runtimeWatchdog() {
-  const interval = setInterval(() => {
+function runtimeWatchdog(state) {
+  const interval = setInterval(async () => {
     if (Date.now() >= END_TIME) {
-      console.log("⏰ MAX EXECUTION TIME REACHED — STOPPING SCRIPT");
+      console.log("⏰ MAX EXECUTION TIME REACHED — FORCE SHUTDOWN");
+
+      HARD_SHUTDOWN = true;
       STOP_FLAG = true;
+      GLOBAL_PAUSE = true;
+
       clearInterval(interval);
+
+      await gracefulShutdown(state);
     }
   }, 1000);
+}
+
+async function gracefulShutdown(state) {
+  console.log("🛑 Initiating graceful shutdown...");
+
+  // Stop recovery loop
+  RECOVERING_403 = false;
+  BLOCKED_QUEUE.clear();
+
+  // Wait for in-flight requests
+  while (IN_FLIGHT > 0) {
+    await new Promise(r => setTimeout(r, 50));
+  }
+
+  console.log("🧊 All requests finished");
+
+  // Flush DB worker
+  await flushDbWorker();
+
+  console.log("💾 Database flushed");
+
+  // Close browser safely
+  try { await state.pool.close(); } catch {}
+  try { await state.browser.close(); } catch {}
+
+  console.log("🌐 Browser closed");
+
+  // Upload DB
+  try {
+    await uploadDbToDrive();
+  } catch (err) {
+    console.log("Drive upload failed:", err.message);
+  }
+
+  console.log("☁️ Upload finished");
+  console.log("✅ Safe exit");
+
+  process.exit(0);
 }
 
 function logStatus(code, status) {
@@ -664,6 +708,7 @@ async function stopAllWorkers(state) {
 // 403 RECOVERY FUNCTION
 // --------------------
 async function recoverFrom403(state) {
+  if (HARD_SHUTDOWN) return;
   if (RECOVERING_403) return;
   RECOVERING_403 = true;
 
@@ -720,7 +765,7 @@ async function recoverFrom403(state) {
 
         const status = resp.status();
         console.log(`Retry status: ${status}`);
-
+        if (HARD_SHUTDOWN) break;
         if (status === 200) {
           console.log(`✅ 403 cleared for ${code}`);
           BLOCKED_QUEUE.delete(code);
@@ -757,25 +802,25 @@ const { chromium } = require("playwright");
 
 (async () => {
 
-  runtimeWatchdog();
+  runtimeWatchdog(state);
 
   try {
     const PREFIXES = [
-    "RVY",
-    "RWK",
-    "L9M",
-    "LBG",
-    "RX6",
-    "RN0",
-    "RXT",
-    "RYD",
-    "RYL",
-    "RTH",
-    "RZM",
-    "S08",
-    "S1F",
-    "S22",
-    "S2P"
+    "PE4",
+    "PTS",
+    "RUR",
+    "TC4",
+    "LUM",
+    "PUD",
+    "Z6E",
+    "PVE",
+    "PW1",
+    "PW8",
+    "LX2",
+    "LWF",
+    "LVU",
+    "K38",
+    "PX8"
 ];
 
     const state = {};
